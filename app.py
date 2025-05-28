@@ -209,5 +209,7 @@ def consensus():
         return jsonify({'message': 'Our chain was replaced', 'new_chain': blockchain.chain}), 200
     return jsonify({'message': 'Our chain is authoritative', 'chain': blockchain.chain}), 200
 
-if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+import os
+port = int(os.environ.get("PORT", 5000))
+app.run(debug=True, host='0.0.0.0', port=port)
+
