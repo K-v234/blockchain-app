@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blockchain Explorer</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f4; }
+        .container { max-width: 1000px; margin: auto; }
+        .card {
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .card h2 { margin: 0 0 10px; }
+        button {
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover { background-color: #0056b3; }
+        input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            background-color: #f9f9f9;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Blockchain Explorer</h1>
+
+        <div class="card">
+            <h2>Wallet Balances</h2>
+            <ul id="balances"></ul>
+        </div>
+
+        <div class="card">
+            <h2>Create Wallet</h2>
+            <button onclick="createWallet()">Generate New Wallet</button>
+            <div id="walletOutput"></div>
+        </div>
+
+        <div class="card">
+            <h2>Create Transaction</h2>
+            <input type="text" id="transactionSender" placeholder="Sender Public Key" required>
+            <input type="text" id="transactionRecipient" placeholder="Recipient Public Key" required>
+            <input type="number" id="transactionAmount" placeholder="Amount" required>
+            <input type="text" id="transactionSignature" placeholder="Transaction Signature" required>
+            <button onclick="createTransaction()">Submit Transaction</button>
+            <div id="transactionOutput"></div>
+        </div>
+
+        <div class="card">
+            <h2>Mine Block</h2>
+            <button onclick="mineBlock()">Mine</button>
+            <div id="mineOutput"></div>
+        </div>
+
+        <div class="card">
+            <h2>Blockchain Chain</h2>
+            <div id="blockchainData"></div>
+        </div>
+    </div>
+
+    <script>
+        const BACKEND_URL = "http://127.0.0.1:5000";
+
+        async function fetchBlockchain() {
+            try {
+                const response = await fetch(`${BACKEND_URL}/chain`);
+                const data = await response.json();
+
+                // Show balances
+                document.getElementById('balances').innerHTML = Object.entries(data.balances)
+                    .map(([key, value]) => `<li><strong>${key.substring(0, 15)}...</strong>: ${value}</li>`).join('');
+
+                // Show chain blocks
+                const blockchainEl = document.getElementById('blockchainData');
+                blockchainEl.innerHTML = data.chain.map(block => `
+                    <div class="card" style="background-color:#fefefe;">
+                        <h3>Block #${block.index}</h3>
+                        <p><strong>Timestamp:</strong> ${new Date(block.timestamp * 1000).toLocaleString()}</p>
+                        <p><strong>Proof:</strong> ${block.proof}</p>
+                        <p><strong>Previous Hash:</strong> ${block.previous_hash}</p>
+                        <p><strong>Transactions:</strong></p>
+                        <ul>${block.transactions.map(tx => `
+                            <li><strong>${tx.sender.substring(0,15)}...</strong> → <strong>${tx.recipient.substring(0,15)}...</strong> : ${tx.amount}</li>
+                        `).join('')}</ul>
+                    </div>
+                `).join('');
+            } catch (err) {
+                console.error("Error fetching blockchain:", err);
+            }
+        }
+
+        async function createWallet() {
+            const response = await fetch(`${BACKEND_URL}/wallet/new`);
+            const data = await response.json();
+            document.getElementById('walletOutput').innerHTML = `
+                <strong>Private Key:</strong><br><textarea rows="5" style="width:100%;">${data.private_key}</textarea><br>
+                <strong>Public Key:</strong><br><textarea rows="4" style="width:100%;">${data.public_key}</textarea>`;
+            fetchBlockchain();
+        }
+
+        async function createTransaction() {
+            const sender = document.getElementById('transactionSender').value;
+            const recipient = document.getElementById('transactionRecipient').value;
+            const amount = parseFloat(document.getElementById('transactionAmount').value);
+            const signature = document.getElementById('transactionSignature').value;
+
+            const response = await fetch(`${BACKEND_URL}/transactions/new`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sender, recipient, amount, signature })
+            });
+
+            const data = await response.json();
+            document.getElementById('transactionOutput').textContent = data.message || data.error;
+            fetchBlockchain();
+        }
+
+        async function mineBlock() {
+            const response = await fetch(`${BACKEND_URL}/mine`);
+            const data = await response.json();
+            document.getElementById('mineOutput').textContent = data.message;
+            fetchBlockchain();
+        }
+
+        // Auto refresh every 10 seconds
+        setInterval(fetchBlockchain, 10000);
+        fetchBlockchain();
+    </script>
+</body>
+</html>
+
