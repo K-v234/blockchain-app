@@ -1,155 +1,92 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Blockchain Explorer</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f4; }
-        .container { max-width: 1000px; margin: auto; }
-        .card {
-            background-color: white;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            padding: 15px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-        }
-        .card h2 { margin: 0 0 10px; }
-        button {
-            background-color: #007BFF;
-            color: white;
-            border: none;
-            padding: 10px 15px;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-        button:hover { background-color: #0056b3; }
-        input {
-            width: 100%;
-            padding: 10px;
-            margin-bottom: 10px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-        }
-        pre {
-            white-space: pre-wrap;
-            word-wrap: break-word;
-            background-color: #f9f9f9;
-            padding: 10px;
-            border-radius: 5px;
-            border: 1px solid #ccc;
-            overflow-x: auto;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>{{ coin }} Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; background-color: #0f172a; color: #e2e8f0; }
+    .card { background-color: #1e293b; border-radius: 10px; padding: 20px; margin-bottom: 20px; }
+    .label { font-weight: bold; color: #facc15; }
+  </style>
 </head>
-<body>
-    <div class="container">
-        <h1>Blockchain Explorer</h1>
+<body class="p-6">
+  <div class="max-w-5xl mx-auto">
+    <h1 class="text-4xl font-bold text-center text-yellow-400 mb-6">{{ coin }} ({{ symbol }})</h1>
 
-        <div class="card">
-            <h2>Wallet Balances</h2>
-            <ul id="balances"></ul>
-        </div>
-
-        <div class="card">
-            <h2>Create Wallet</h2>
-            <button onclick="createWallet()">Generate New Wallet</button>
-            <div id="walletOutput"></div>
-        </div>
-
-        <div class="card">
-            <h2>Create Transaction</h2>
-            <input type="text" id="transactionSender" placeholder="Sender Public Key" required>
-            <input type="text" id="transactionRecipient" placeholder="Recipient Public Key" required>
-            <input type="number" id="transactionAmount" placeholder="Amount" required>
-            <input type="text" id="transactionSignature" placeholder="Transaction Signature" required>
-            <button onclick="createTransaction()">Submit Transaction</button>
-            <div id="transactionOutput"></div>
-        </div>
-
-        <div class="card">
-            <h2>Mine Block</h2>
-            <button onclick="mineBlock()">Mine</button>
-            <div id="mineOutput"></div>
-        </div>
-
-        <div class="card">
-            <h2>Blockchain Chain</h2>
-            <div id="blockchainData"></div>
-        </div>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div class="card">
+        <h2 class="text-xl mb-2 label">Circulating Supply</h2>
+        <p id="supply">Loading...</p>
+      </div>
+      <div class="card">
+        <h2 class="text-xl mb-2 label">Max Supply</h2>
+        <p>21,000,000 {{ symbol }}</p>
+      </div>
+      <div class="card">
+        <h2 class="text-xl mb-2 label">Blocks Mined</h2>
+        <p id="blockCount">Loading...</p>
+      </div>
     </div>
 
-    <script>
-        // ✅ Use relative URL for Render (same server)
-        const BACKEND_URL = "";
+    <div class="card">
+      <h2 class="text-2xl mb-3 label">Create Wallet</h2>
+      <button onclick="createWallet()" class="bg-yellow-500 hover:bg-yellow-400 px-4 py-2 rounded">Generate Wallet</button>
+      <div id="walletOutput" class="mt-3 text-sm"></div>
+    </div>
 
-        async function fetchBlockchain() {
-            try {
-                const response = await fetch(`${BACKEND_URL}/chain`);
-                const data = await response.json();
+    <div class="card">
+      <h2 class="text-2xl mb-3 label">Mine a Block</h2>
+      <button onclick="mineBlock()" class="bg-green-500 hover:bg-green-400 px-4 py-2 rounded">Mine Now</button>
+      <div id="mineOutput" class="mt-3 text-sm"></div>
+    </div>
 
-                // Show balances
-                document.getElementById('balances').innerHTML = Object.entries(data.balances)
-                    .map(([key, value]) => `<li><strong>${key.substring(0, 15)}...</strong>: ${value}</li>`).join('');
+    <div class="card">
+      <h2 class="text-2xl mb-3 label">Blockchain Explorer</h2>
+      <div id="blockchainData" class="text-xs whitespace-pre-wrap max-h-[400px] overflow-y-scroll bg-slate-800 p-3 rounded"></div>
+    </div>
+  </div>
 
-                // Show chain blocks
-                const blockchainEl = document.getElementById('blockchainData');
-                blockchainEl.innerHTML = data.chain.map(block => `
-                    <div class="card" style="background-color:#fefefe;">
-                        <h3>Block #${block.index}</h3>
-                        <p><strong>Timestamp:</strong> ${new Date(block.timestamp * 1000).toLocaleString()}</p>
-                        <p><strong>Proof:</strong> ${block.proof}</p>
-                        <p><strong>Previous Hash:</strong> ${block.previous_hash}</p>
-                        <p><strong>Transactions:</strong></p>
-                        <ul>${block.transactions.map(tx => `
-                            <li><strong>${tx.sender.substring(0,15)}...</strong> → <strong>${tx.recipient.substring(0,15)}...</strong> : ${tx.amount}</li>
-                        `).join('')}</ul>
-                    </div>
-                `).join('');
-            } catch (err) {
-                console.error("Error fetching blockchain:", err);
-            }
-        }
+  <script>
+    const BACKEND_URL = "";
 
-        async function createWallet() {
-            const response = await fetch(`${BACKEND_URL}/wallet/new`);
-            const data = await response.json();
-            document.getElementById('walletOutput').innerHTML = `
-                <strong>Private Key:</strong><br><textarea rows="5" style="width:100%;">${data.private_key}</textarea><br>
-                <strong>Public Key:</strong><br><textarea rows="4" style="width:100%;">${data.public_key}</textarea>`;
-            fetchBlockchain();
-        }
+    async function fetchBlockchain() {
+      const res = await fetch(`${BACKEND_URL}/chain`);
+      const data = await res.json();
 
-        async function createTransaction() {
-            const sender = document.getElementById('transactionSender').value;
-            const recipient = document.getElementById('transactionRecipient').value;
-            const amount = parseFloat(document.getElementById('transactionAmount').value);
-            const signature = document.getElementById('transactionSignature').value;
+      document.getElementById("supply").textContent = `${data.circulating_supply} SHD`;
+      document.getElementById("blockCount").textContent = data.length;
 
-            const response = await fetch(`${BACKEND_URL}/transactions/new`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ sender, recipient, amount, signature })
-            });
+      const explorer = document.getElementById("blockchainData");
+      explorer.innerHTML = data.chain.map(block => `
+        Block #${block.index}
+        ├─ Hash: ${block.previous_hash}
+        ├─ Proof: ${block.proof}
+        ├─ Transactions: ${block.transactions.length}
+        └─ Time: ${new Date(block.timestamp * 1000).toLocaleString()}
+      `).join('\n\n');
+    }
 
-            const data = await response.json();
-            document.getElementById('transactionOutput').textContent = data.message || data.error;
-            fetchBlockchain();
-        }
+    async function createWallet() {
+      const res = await fetch(`${BACKEND_URL}/wallet/new`);
+      const data = await res.json();
+      document.getElementById("walletOutput").innerHTML = `
+        <strong>Private Key:</strong><br><textarea rows="4" class="w-full">${data.private_key}</textarea><br>
+        <strong>Public Key:</strong><br><textarea rows="3" class="w-full">${data.public_key}</textarea>`;
+      fetchBlockchain();
+    }
 
-        async function mineBlock() {
-            const response = await fetch(`${BACKEND_URL}/mine`);
-            const data = await response.json();
-            document.getElementById('mineOutput').textContent = data.message;
-            fetchBlockchain();
-        }
+    async function mineBlock() {
+      const res = await fetch(`${BACKEND_URL}/mine`);
+      const data = await res.json();
+      document.getElementById("mineOutput").textContent = data.message;
+      fetchBlockchain();
+    }
 
-        // Auto-refresh
-        setInterval(fetchBlockchain, 10000);
-        fetchBlockchain();
-    </script>
+    fetchBlockchain();
+    setInterval(fetchBlockchain, 15000);
+  </script>
 </body>
 </html>
-
 
