@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>{{ coin }} Dashboard</title>
+  <title>ShadowChain Explorer</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
     body { font-family: 'Segoe UI', sans-serif; background-color: #0f172a; color: #e2e8f0; }
     .card { background-color: #1e293b; border-radius: 10px; padding: 20px; margin-bottom: 20px; }
@@ -12,8 +13,8 @@
   </style>
 </head>
 <body class="p-6">
-  <div class="max-w-5xl mx-auto">
-    <h1 class="text-4xl font-bold text-center text-yellow-400 mb-6">{{ coin }} ({{ symbol }})</h1>
+  <div class="max-w-6xl mx-auto">
+    <h1 class="text-4xl font-bold text-center text-yellow-400 mb-6">ShadowChain (SHD)</h1>
 
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
       <div class="card">
@@ -22,7 +23,7 @@
       </div>
       <div class="card">
         <h2 class="text-xl mb-2 label">Max Supply</h2>
-        <p>21,000,000 {{ symbol }}</p>
+        <p>21,000,000 SHD</p>
       </div>
       <div class="card">
         <h2 class="text-xl mb-2 label">Blocks Mined</h2>
@@ -34,6 +35,7 @@
       <h2 class="text-2xl mb-3 label">Create Wallet</h2>
       <button onclick="createWallet()" class="bg-yellow-500 hover:bg-yellow-400 px-4 py-2 rounded">Generate Wallet</button>
       <div id="walletOutput" class="mt-3 text-sm"></div>
+      <div id="qrcode" class="mt-3"></div>
     </div>
 
     <div class="card">
@@ -43,8 +45,15 @@
     </div>
 
     <div class="card">
+      <h2 class="text-2xl mb-3 label">Search Blockchain</h2>
+      <input type="text" id="searchInput" placeholder="Enter block index or public key" class="text-black p-2 rounded w-full mb-2">
+      <button onclick="search()" class="bg-blue-500 hover:bg-blue-400 px-4 py-2 rounded">Search</button>
+      <pre id="searchResult" class="mt-3 text-xs whitespace-pre-wrap bg-slate-800 p-3 rounded max-h-[300px] overflow-y-scroll"></pre>
+    </div>
+
+    <div class="card">
       <h2 class="text-2xl mb-3 label">Blockchain Explorer</h2>
-      <div id="blockchainData" class="text-xs whitespace-pre-wrap max-h-[400px] overflow-y-scroll bg-slate-800 p-3 rounded"></div>
+      <pre id="blockchainData" class="text-xs whitespace-pre-wrap max-h-[400px] overflow-y-scroll bg-slate-800 p-3 rounded"></pre>
     </div>
   </div>
 
@@ -59,29 +68,67 @@
       document.getElementById("blockCount").textContent = data.length;
 
       const explorer = document.getElementById("blockchainData");
-      explorer.innerHTML = data.chain.map(block => `
-        Block #${block.index}
-        ├─ Hash: ${block.previous_hash}
-        ├─ Proof: ${block.proof}
-        ├─ Transactions: ${block.transactions.length}
-        └─ Time: ${new Date(block.timestamp * 1000).toLocaleString()}
-      `).join('\n\n');
+      explorer.innerHTML = data.chain.map(block => \`
+        Block #\${block.index}
+        ├─ Hash: \${block.previous_hash}
+        ├─ Proof: \${block.proof}
+        ├─ Transactions: \${block.transactions.length}
+        └─ Time: \${new Date(block.timestamp * 1000).toLocaleString()}
+      \`).join('\n\n');
     }
 
     async function createWallet() {
-      const res = await fetch(`${BACKEND_URL}/wallet/new`);
+      const res = await fetch(\`\${BACKEND_URL}/wallet/new\`);
       const data = await res.json();
-      document.getElementById("walletOutput").innerHTML = `
-        <strong>Private Key:</strong><br><textarea rows="4" class="w-full">${data.private_key}</textarea><br>
-        <strong>Public Key:</strong><br><textarea rows="3" class="w-full">${data.public_key}</textarea>`;
+      const out = document.getElementById("walletOutput");
+      out.innerHTML = \`
+        <strong>Private Key:</strong><br><textarea rows="4" class="w-full" id="pk">\${data.private_key}</textarea><br>
+        <strong>Public Key:</strong><br><textarea rows="3" class="w-full" id="pub">\${data.public_key}</textarea><br>
+        <button onclick="downloadWallet()">Download Wallet</button>\`;
+
+      const qrCodeEl = document.getElementById("qrcode");
+      qrCodeEl.innerHTML = "";
+      new QRCode(qrCodeEl, {
+        text: data.public_key,
+        width: 128,
+        height: 128
+      });
+
       fetchBlockchain();
     }
 
+    function downloadWallet() {
+      const pk = document.getElementById("pk").value;
+      const pub = document.getElementById("pub").value;
+      const blob = new Blob([`Private Key:\n\${pk}\n\nPublic Key:\n\${pub}`], { type: "text/plain" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "shadowchain_wallet.txt";
+      link.click();
+    }
+
     async function mineBlock() {
-      const res = await fetch(`${BACKEND_URL}/mine`);
+      const res = await fetch(\`\${BACKEND_URL}/mine\`);
       const data = await res.json();
       document.getElementById("mineOutput").textContent = data.message;
       fetchBlockchain();
+    }
+
+    async function search() {
+      const input = document.getElementById("searchInput").value.trim();
+      const result = document.getElementById("searchResult");
+      result.textContent = "Searching...";
+      if (!input) return;
+
+      let res;
+      if (!isNaN(input)) {
+        res = await fetch(\`\${BACKEND_URL}/block/\${input}\`);
+      } else {
+        res = await fetch(\`\${BACKEND_URL}/transactions/\${input}\`);
+      }
+
+      const data = await res.json();
+      result.textContent = JSON.stringify(data, null, 2);
     }
 
     fetchBlockchain();
