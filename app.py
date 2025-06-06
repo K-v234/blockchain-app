@@ -66,7 +66,6 @@ class Blockchain:
             'previous_hash': previous_hash or self.hash(self.chain[-1]),
         }
 
-        # Apply transaction amounts to balances
         for tx in self.current_transactions:
             sender = tx['sender']
             recipient = tx['recipient']
@@ -83,7 +82,6 @@ class Blockchain:
     def new_transaction(self, sender, recipient, amount, signature):
         if amount <= 0 or sender not in wallets:
             return False
-
         if self.balances.get(sender, 0) < amount:
             return False
 
@@ -178,7 +176,6 @@ def new_transaction():
 
 @app.route('/mine', methods=['GET'])
 def mine():
-    # Simulate a reward
     reward_recipient = list(wallets.keys())[0] if wallets else "0"
     reward_tx = {'sender': "0", 'recipient': reward_recipient, 'amount': 10}
     blockchain.current_transactions.append(reward_tx)
@@ -209,7 +206,33 @@ def consensus():
         return jsonify({'message': 'Our chain was replaced', 'new_chain': blockchain.chain}), 200
     return jsonify({'message': 'Our chain is authoritative', 'chain': blockchain.chain}), 200
 
+# ✅ ✅ ✅ New API Routes
+@app.route('/block/<int:index>', methods=['GET'])
+def get_block(index):
+    if 0 < index <= len(blockchain.chain):
+        block = blockchain.chain[index - 1]
+        return jsonify(block), 200
+    return jsonify({'error': 'Block not found'}), 404
+
+@app.route('/transactions/<public_key>', methods=['GET'])
+def get_transactions(public_key):
+    txs = []
+    for block in blockchain.chain:
+        for tx in block['transactions']:
+            if tx['sender'] == public_key or tx['recipient'] == public_key:
+                txs.append({
+                    'block': block['index'],
+                    'sender': tx['sender'],
+                    'recipient': tx['recipient'],
+                    'amount': tx['amount'],
+                    'timestamp': block['timestamp']
+                })
+    if not txs:
+        return jsonify({'message': 'No transactions found'}), 404
+    return jsonify(txs), 200
+
+# Start server
 import os
 port = int(os.environ.get("PORT", 5000))
-app.run(debug=True, host='0.0.0.0', port=port)
-
+if __name__ == "__main__":
+    app.run(debug=True, host='0.0.0.0', port=port)
