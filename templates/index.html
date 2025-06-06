@@ -81,7 +81,8 @@
     </div>
 
     <script>
-        const BACKEND_URL = "http://127.0.0.1:5000";
+        // ✅ Use relative URL for Render (same server)
+        const BACKEND_URL = "";
 
         async function fetchBlockchain() {
             try {
@@ -144,10 +145,11 @@
             fetchBlockchain();
         }
 
-        // Auto refresh every 10 seconds
+        // Auto-refresh
         setInterval(fetchBlockchain, 10000);
         fetchBlockchain();
     </script>
 </body>
 </html>
+
 
