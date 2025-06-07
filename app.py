@@ -10,13 +10,11 @@ import os
 
 app = Flask(__name__)
 
-# ====== Constants for Tokenomics ======
-MAX_SUPPLY = 1_000_000  # max total tokens supply
-INITIAL_REWARD = 50     # initial mining reward tokens
-HALVING_INTERVAL = 10   # blocks after which reward halves
-DIFFICULTY_TARGET = 15  # target seconds per block (for difficulty adjustment)
+MAX_SUPPLY = 1_000_000
+INITIAL_REWARD = 50
+HALVING_INTERVAL = 10
+DIFFICULTY_TARGET = 15
 
-# ====== Wallet Class =======
 class Wallet:
     def __init__(self):
         self.private_key = rsa.generate_private_key(public_exponent=65537, key_size=3072)
@@ -57,15 +55,14 @@ class Wallet:
         except Exception:
             return False
 
-# ===== Blockchain Class =====
 class Blockchain:
     def __init__(self):
         self.chain = []
         self.current_transactions = []
         self.nodes = set()
         self.balances = {}
-        self.mined_rewards = {}      # Track total rewards mined per wallet
-        self.difficulty = 4          # initial difficulty (number of leading zeros)
+        self.mined_rewards = {}
+        self.difficulty = 4
         self.new_block(previous_hash='1', proof=100)
 
     def new_block(self, proof, previous_hash=None):
@@ -78,35 +75,28 @@ class Blockchain:
             'difficulty': self.difficulty,
         }
 
-        # Apply transactions to balances
         for tx in self.current_transactions:
             sender = tx['sender']
             recipient = tx['recipient']
             amount = tx['amount']
             fee = tx.get('fee', 0)
-
-            # Deduct amount + fee from sender, add to recipient, fee goes to miner
             if sender != "0":
                 self.balances[sender] -= (amount + fee)
             self.balances[recipient] = self.balances.get(recipient, 0) + amount
 
-        # Reset current transactions
         self.current_transactions = []
         self.chain.append(block)
 
-        # Difficulty adjustment every HALVING_INTERVAL blocks
         if len(self.chain) % HALVING_INTERVAL == 0 and len(self.chain) > 1:
             self.adjust_difficulty()
 
         return block
 
     def new_transaction(self, sender, recipient, amount, signature, fee=0):
-        # Validate transaction inputs
         if amount <= 0 or sender not in wallets or recipient not in wallets:
             return False, 'Invalid sender or recipient or amount'
 
         total_amount = amount + fee
-
         if self.balances.get(sender, 0) < total_amount:
             return False, 'Insufficient balance'
 
@@ -119,7 +109,6 @@ class Blockchain:
 
     @staticmethod
     def hash(block):
-        # SHA256 hash of block JSON
         return hashlib.sha256(json.dumps(block, sort_keys=True).encode()).hexdigest()
 
     @property
@@ -143,13 +132,11 @@ class Blockchain:
         return guess_hash.startswith(prefix)
 
     def adjust_difficulty(self):
-        # Adjust difficulty based on block times
         if len(self.chain) < HALVING_INTERVAL + 1:
             return
         latest_block = self.chain[-1]
         prev_adjust_block = self.chain[-(HALVING_INTERVAL + 1)]
         time_taken = latest_block['timestamp'] - prev_adjust_block['timestamp']
-
         expected_time = HALVING_INTERVAL * DIFFICULTY_TARGET
         if time_taken < expected_time / 2:
             self.difficulty += 1
@@ -193,22 +180,19 @@ class Blockchain:
                 return False
         return True
 
-# Global wallets and blockchain instance
 wallets = {}
 blockchain = Blockchain()
 
-# ====== Routes ======
-
 @app.route('/', methods=['GET'])
 def home():
-    return render_template('index.html')  # Create your frontend HTML accordingly
+    return render_template('index.html')
 
 @app.route('/wallet/new', methods=['GET'])
 def create_wallet():
     wallet = Wallet()
     public_key = wallet.get_public_key()
     wallets[public_key] = wallet
-    blockchain.balances[public_key] = blockchain.balances.get(public_key, 100)  # Initial balance
+    blockchain.balances[public_key] = blockchain.balances.get(public_key, 100)
     blockchain.mined_rewards[public_key] = 0
     return jsonify({'private_key': wallet.get_private_key(), 'public_key': public_key}), 200
 
@@ -259,24 +243,19 @@ def new_transaction():
 
 @app.route('/mine', methods=['GET'])
 def mine():
-    # Select miner (here we pick first wallet if exists)
     if not wallets:
         return jsonify({'error': 'No wallets available for mining reward'}), 400
     miner_public_key = list(wallets.keys())[0]
 
-    # Mining reward transaction (from "0" address)
     reward_amount = blockchain.get_mining_reward()
     reward_tx = {'sender': "0", 'recipient': miner_public_key, 'amount': reward_amount, 'fee': 0}
     blockchain.current_transactions.append(reward_tx)
 
-    # Proof of work
     last_proof = blockchain.last_block['proof']
     proof = blockchain.proof_of_work(last_proof)
 
-    # Create new block
     block = blockchain.new_block(proof)
 
-    # Track rewards mined
     blockchain.balances[miner_public_key] = blockchain.balances.get(miner_public_key, 0) + reward_amount
     blockchain.mined_rewards[miner_public_key] = blockchain.mined_rewards.get(miner_public_key, 0) + reward_amount
 
@@ -340,7 +319,6 @@ def consensus():
         return jsonify({'message': 'Our chain was replaced', 'new_chain': blockchain.chain}), 200
     return jsonify({'message': 'Our chain is authoritative', 'chain': blockchain.chain}), 200
 
-# Run app
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(debug=True, host='0.0.0.0', port=port)

@@ -1,106 +1,249 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="scroll-smooth">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>ShadowChain Explorer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ShadowChain Explorer | God Mode</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&family=JetBrains+Mono&display=swap" rel="stylesheet" />
   <style>
-    body { font-family: 'Segoe UI', sans-serif; background-color: #0f172a; color: #e2e8f0; }
-    .card { background-color: #1e293b; border-radius: 10px; padding: 20px; margin-bottom: 20px; }
-    .label { font-weight: bold; color: #facc15; }
+    /* Fonts & base */
+    body {
+      font-family: 'JetBrains Mono', monospace;
+      background: #0a0f23;
+      color: #e0e7ff;
+      min-height: 100vh;
+    }
+
+    h1, h2 {
+      font-family: 'Orbitron', 'Segoe UI', sans-serif;
+      text-shadow: 0 0 10px #f59e0b;
+    }
+
+    /* Glassmorphism cards */
+    .card {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid #facc15;
+      border-radius: 1rem;
+      padding: 1.5rem 2rem;
+      box-shadow:
+        0 0 15px #facc15aa,
+        inset 0 0 15px #facc1555;
+      backdrop-filter: blur(15px);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    .card:hover {
+      transform: scale(1.03);
+      box-shadow:
+        0 0 25px #facc15cc,
+        inset 0 0 25px #facc15aa;
+    }
+
+    /* Neon labels */
+    .label {
+      color: #f59e0b;
+      text-shadow:
+        0 0 5px #facc15,
+        0 0 10px #facc15,
+        0 0 20px #facc15;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+    }
+
+    /* Buttons with neon glow */
+    button {
+      background: #facc15;
+      color: #0f172a;
+      font-weight: 700;
+      padding: 0.5rem 1.5rem;
+      border-radius: 9999px;
+      box-shadow:
+        0 0 8px #facc15cc,
+        0 0 20px #facc15aa;
+      transition: background-color 0.3s ease, box-shadow 0.3s ease;
+      cursor: pointer;
+      user-select: none;
+    }
+    button:hover {
+      background: #f59e0b;
+      box-shadow:
+        0 0 12px #f59e0bdd,
+        0 0 30px #f59e0bdd;
+    }
+    button:active {
+      transform: scale(0.95);
+      box-shadow: none;
+    }
+
+    /* Input styling */
+    input[type="text"], textarea {
+      background: #1e293b;
+      border: 1.5px solid #facc15;
+      color: #facc15;
+      border-radius: 0.5rem;
+      padding: 0.5rem 1rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1rem;
+      transition: border-color 0.3s ease, box-shadow 0.3s ease;
+      outline-offset: 2px;
+    }
+    input[type="text"]:focus, textarea:focus {
+      border-color: #f59e0b;
+      box-shadow: 0 0 12px #facc15cc;
+      outline: none;
+      background: #2a334d;
+      color: #fff;
+    }
+
+    /* Scrollbars for pre */
+    pre {
+      scrollbar-width: thin;
+      scrollbar-color: #facc15 #1e293b;
+    }
+    pre::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    pre::-webkit-scrollbar-track {
+      background: #1e293b;
+      border-radius: 10px;
+    }
+    pre::-webkit-scrollbar-thumb {
+      background-color: #facc15;
+      border-radius: 10px;
+      border: 2px solid #1e293b;
+    }
+
+    /* QR Code styling */
+    #qrcode > canvas {
+      border-radius: 1rem;
+      box-shadow:
+        0 0 20px #facc15cc;
+      margin: auto;
+      display: block;
+    }
+
+    /* Responsive Grid tweaks */
+    @media (min-width: 768px) {
+      .grid-cols-1.md\:grid-cols-3 {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+
   </style>
 </head>
 <body class="p-6">
-  <div class="max-w-6xl mx-auto">
-    <h1 class="text-4xl font-bold text-center text-yellow-400 mb-6">ShadowChain (SHD)</h1>
+  <div class="max-w-7xl mx-auto">
+    <h1 class="text-5xl font-bold text-center text-yellow-400 mb-10 tracking-widest drop-shadow-lg">SHADOWCHAIN (SHD) GOD MODE</h1>
 
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-      <div class="card">
-        <h2 class="text-xl mb-2 label">Circulating Supply</h2>
-        <p id="supply">Loading...</p>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+      <div class="card flex flex-col items-center justify-center">
+        <h2 class="text-xl mb-3 label uppercase tracking-wider">Circulating Supply</h2>
+        <p id="supply" class="text-3xl font-extrabold text-yellow-300 drop-shadow-md">Loading...</p>
       </div>
-      <div class="card">
-        <h2 class="text-xl mb-2 label">Max Supply</h2>
-        <p>21,000,000 SHD</p>
+      <div class="card flex flex-col items-center justify-center">
+        <h2 class="text-xl mb-3 label uppercase tracking-wider">Max Supply</h2>
+        <p class="text-3xl font-extrabold text-yellow-300 drop-shadow-md">21,000,000 SHD</p>
       </div>
-      <div class="card">
-        <h2 class="text-xl mb-2 label">Blocks Mined</h2>
-        <p id="blockCount">Loading...</p>
+      <div class="card flex flex-col items-center justify-center">
+        <h2 class="text-xl mb-3 label uppercase tracking-wider">Blocks Mined</h2>
+        <p id="blockCount" class="text-3xl font-extrabold text-yellow-300 drop-shadow-md">Loading...</p>
       </div>
     </div>
 
-    <div class="card">
-      <h2 class="text-2xl mb-3 label">Create Wallet</h2>
-      <button onclick="createWallet()" class="bg-yellow-500 hover:bg-yellow-400 px-4 py-2 rounded">Generate Wallet</button>
-      <div id="walletOutput" class="mt-3 text-sm"></div>
-      <div id="qrcode" class="mt-3"></div>
-    </div>
+    <section class="card mb-10">
+      <h2 class="text-3xl mb-5 label uppercase tracking-wide">Create Wallet</h2>
+      <button onclick="createWallet()" aria-label="Generate Wallet" title="Generate a new wallet" class="mb-6">Generate Wallet</button>
+      <div id="walletOutput" class="mt-3 text-yellow-300 font-mono leading-relaxed"></div>
+      <div id="qrcode" class="mt-6"></div>
+    </section>
 
-    <div class="card">
-      <h2 class="text-2xl mb-3 label">Mine a Block</h2>
-      <button onclick="mineBlock()" class="bg-green-500 hover:bg-green-400 px-4 py-2 rounded">Mine Now</button>
-      <div id="mineOutput" class="mt-3 text-sm"></div>
-    </div>
+    <section class="card mb-10">
+      <h2 class="text-3xl mb-5 label uppercase tracking-wide">Mine a Block</h2>
+      <button onclick="mineBlock()" aria-label="Mine a new block" title="Start mining a block">Mine Now</button>
+      <p id="mineOutput" class="mt-4 text-yellow-300 font-semibold"></p>
+    </section>
 
-    <div class="card">
-      <h2 class="text-2xl mb-3 label">Search Blockchain</h2>
-      <input type="text" id="searchInput" placeholder="Enter block index or public key" class="text-black p-2 rounded w-full mb-2">
-      <button onclick="search()" class="bg-blue-500 hover:bg-blue-400 px-4 py-2 rounded">Search</button>
-      <pre id="searchResult" class="mt-3 text-xs whitespace-pre-wrap bg-slate-800 p-3 rounded max-h-[300px] overflow-y-scroll"></pre>
-    </div>
+    <section class="card mb-10">
+      <h2 class="text-3xl mb-5 label uppercase tracking-wide">Search Blockchain</h2>
+      <input
+        type="text"
+        id="searchInput"
+        placeholder="Enter block index or public key"
+        class="w-full mb-4"
+        aria-label="Search block index or public key"
+      />
+      <button onclick="search()" aria-label="Search Blockchain" title="Search blockchain data">Search</button>
+      <pre id="searchResult" class="mt-5 text-yellow-300 text-sm whitespace-pre-wrap max-h-80 overflow-y-auto rounded border border-yellow-400 p-4"></pre>
+    </section>
 
-    <div class="card">
-      <h2 class="text-2xl mb-3 label">Blockchain Explorer</h2>
-      <pre id="blockchainData" class="text-xs whitespace-pre-wrap max-h-[400px] overflow-y-scroll bg-slate-800 p-3 rounded"></pre>
-    </div>
+    <section class="card mb-16">
+      <h2 class="text-3xl mb-5 label uppercase tracking-wide">Blockchain Explorer</h2>
+      <pre id="blockchainData" class="text-yellow-300 text-sm whitespace-pre-wrap max-h-96 overflow-y-auto rounded border border-yellow-400 p-5"></pre>
+    </section>
   </div>
 
   <script>
     const BACKEND_URL = "";
 
     async function fetchBlockchain() {
-      const res = await fetch(`${BACKEND_URL}/chain`);
-      const data = await res.json();
+      try {
+        const res = await fetch(`${BACKEND_URL}/chain`);
+        if (!res.ok) throw new Error("Failed to fetch blockchain");
+        const data = await res.json();
 
-      document.getElementById("supply").textContent = `${data.circulating_supply} SHD`;
-      document.getElementById("blockCount").textContent = data.length;
+        document.getElementById("supply").textContent = `${data.circulating_supply ?? "N/A"} SHD`;
+        document.getElementById("blockCount").textContent = data.length ?? "N/A";
 
-      const explorer = document.getElementById("blockchainData");
-      explorer.innerHTML = data.chain.map(block => \`
-        Block #\${block.index}
-        ├─ Hash: \${block.previous_hash}
-        ├─ Proof: \${block.proof}
-        ├─ Transactions: \${block.transactions.length}
-        └─ Time: \${new Date(block.timestamp * 1000).toLocaleString()}
-      \`).join('\n\n');
+        const explorer = document.getElementById("blockchainData");
+        explorer.innerHTML = data.chain
+          .map(block => `
+Block #${block.index}
+├─ Hash: ${block.previous_hash}
+├─ Proof: ${block.proof}
+├─ Transactions: ${block.transactions.length}
+└─ Time: ${new Date(block.timestamp * 1000).toLocaleString()}
+        `).join('\n\n');
+      } catch (err) {
+        console.error(err);
+        document.getElementById("blockchainData").textContent = "Error loading blockchain data.";
+      }
     }
 
     async function createWallet() {
-      const res = await fetch(\`\${BACKEND_URL}/wallet/new\`);
-      const data = await res.json();
-      const out = document.getElementById("walletOutput");
-      out.innerHTML = \`
-        <strong>Private Key:</strong><br><textarea rows="4" class="w-full" id="pk">\${data.private_key}</textarea><br>
-        <strong>Public Key:</strong><br><textarea rows="3" class="w-full" id="pub">\${data.public_key}</textarea><br>
-        <button onclick="downloadWallet()">Download Wallet</button>\`;
+      try {
+        const res = await fetch(`${BACKEND_URL}/wallet/new`);
+        if (!res.ok) throw new Error("Failed to create wallet");
+        const data = await res.json();
+        const out = document.getElementById("walletOutput");
+        out.innerHTML = `
+<strong>Private Key:</strong><br><textarea rows="4" class="w-full bg-transparent border border-yellow-400 rounded p-2 font-mono text-yellow-200" id="pk" readonly>${data.private_key}</textarea><br>
+<strong>Public Key:</strong><br><textarea rows="3" class="w-full bg-transparent border border-yellow-400 rounded p-2 font-mono text-yellow-200" id="pub" readonly>${data.public_key}</textarea><br>
+<button onclick="downloadWallet()">Download Wallet</button>
+        `;
 
-      const qrCodeEl = document.getElementById("qrcode");
-      qrCodeEl.innerHTML = "";
-      new QRCode(qrCodeEl, {
-        text: data.public_key,
-        width: 128,
-        height: 128
-      });
+        const qrCodeEl = document.getElementById("qrcode");
+        qrCodeEl.innerHTML = "";
+        new QRCode(qrCodeEl, {
+          text: data.public_key,
+          width: 160,
+          height: 160,
+          colorDark: "#facc15",
+          colorLight: "#0a0f23",
+        });
 
-      fetchBlockchain();
+        fetchBlockchain();
+      } catch (err) {
+        console.error(err);
+        document.getElementById("walletOutput").textContent = "Failed to generate wallet.";
+      }
     }
 
     function downloadWallet() {
       const pk = document.getElementById("pk").value;
       const pub = document.getElementById("pub").value;
-      const blob = new Blob([`Private Key:\n\${pk}\n\nPublic Key:\n\${pub}`], { type: "text/plain" });
+      const blob = new Blob([`Private Key:\n${pk}\n\nPublic Key:\n${pub}`], { type: "text/plain" });
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
       link.download = "shadowchain_wallet.txt";
@@ -108,27 +251,40 @@
     }
 
     async function mineBlock() {
-      const res = await fetch(\`\${BACKEND_URL}/mine\`);
-      const data = await res.json();
-      document.getElementById("mineOutput").textContent = data.message;
-      fetchBlockchain();
+      try {
+        const res = await fetch(`${BACKEND_URL}/mine`);
+        if (!res.ok) throw new Error("Mining failed");
+        const data = await res.json();
+        document.getElementById("mineOutput").textContent = data.message;
+        fetchBlockchain();
+      } catch (err) {
+        console.error(err);
+        document.getElementById("mineOutput").textContent = "Mining failed. Try again.";
+      }
     }
 
     async function search() {
       const input = document.getElementById("searchInput").value.trim();
       const result = document.getElementById("searchResult");
       result.textContent = "Searching...";
-      if (!input) return;
-
-      let res;
-      if (!isNaN(input)) {
-        res = await fetch(\`\${BACKEND_URL}/block/\${input}\`);
-      } else {
-        res = await fetch(\`\${BACKEND_URL}/transactions/\${input}\`);
+      if (!input) {
+        result.textContent = "Please enter a block index or public key.";
+        return;
       }
 
-      const data = await res.json();
-      result.textContent = JSON.stringify(data, null, 2);
+      try {
+        let res;
+        if (!isNaN(input)) {
+          res = await fetch(`${BACKEND_URL}/block/${input}`);
+        } else {
+          res = await fetch(`${BACKEND_URL}/transactions/${input}`);
+        }
+        if (!res.ok) throw new Error("Not found");
+        const data = await res.json();
+        result.textContent = JSON.stringify(data, null, 2);
+      } catch {
+        result.textContent = "No matching data found.";
+      }
     }
 
     fetchBlockchain();
@@ -136,4 +292,3 @@
   </script>
 </body>
 </html>
-
