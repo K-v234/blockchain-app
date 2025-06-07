@@ -55,6 +55,11 @@ class Blockchain:
         self.current_transactions = []
         self.nodes = set()
         self.balances = {}
+        self.mined_amounts = {}
+        self.max_supply = 21000000
+        self.total_mined = 0
+        self.block_reward = 50
+        self.halving_interval = 100
         self.new_block(previous_hash='1', proof=100)
 
     def new_block(self, proof, previous_hash=None):
@@ -75,13 +80,22 @@ class Blockchain:
                 self.balances[sender] -= amount
             self.balances[recipient] = self.balances.get(recipient, 0) + amount
 
+            if sender == "0":
+                self.total_mined += amount
+                self.mined_amounts[recipient] = self.mined_amounts.get(recipient, 0) + amount
+
         self.current_transactions = []
         self.chain.append(block)
+
+        if len(self.chain) % self.halving_interval == 0:
+            self.block_reward = max(self.block_reward // 2, 1)
+
         return block
 
     def new_transaction(self, sender, recipient, amount, signature):
         if amount <= 0 or sender not in wallets:
             return False
+
         if self.balances.get(sender, 0) < amount:
             return False
 
@@ -176,15 +190,27 @@ def new_transaction():
 
 @app.route('/mine', methods=['GET'])
 def mine():
-    reward_recipient = list(wallets.keys())[0] if wallets else "0"
-    reward_tx = {'sender': "0", 'recipient': reward_recipient, 'amount': 10}
+    if not wallets:
+        return jsonify({'error': 'No wallet available'}), 400
+
+    miner = list(wallets.keys())[0]
+    if blockchain.total_mined + blockchain.block_reward > blockchain.max_supply:
+        return jsonify({'error': 'Max supply reached'}), 400
+
+    reward_tx = {'sender': "0", 'recipient': miner, 'amount': blockchain.block_reward}
     blockchain.current_transactions.append(reward_tx)
 
     last_proof = blockchain.last_block['proof']
     proof = blockchain.proof_of_work(last_proof)
     block = blockchain.new_block(proof)
 
-    return jsonify({'message': 'New Block Forged', 'index': block['index']}), 200
+    return jsonify({
+        'message': 'Block mined!',
+        'index': block['index'],
+        'reward': blockchain.block_reward,
+        'miner': miner,
+        'total_mined': blockchain.total_mined
+    }), 200
 
 @app.route('/chain', methods=['GET'])
 def full_chain():
@@ -206,7 +232,6 @@ def consensus():
         return jsonify({'message': 'Our chain was replaced', 'new_chain': blockchain.chain}), 200
     return jsonify({'message': 'Our chain is authoritative', 'chain': blockchain.chain}), 200
 
-# ✅ ✅ ✅ New API Routes
 @app.route('/block/<int:index>', methods=['GET'])
 def get_block(index):
     if 0 < index <= len(blockchain.chain):
@@ -231,8 +256,20 @@ def get_transactions(public_key):
         return jsonify({'message': 'No transactions found'}), 404
     return jsonify(txs), 200
 
-# Start server
+@app.route('/user/<public_key>', methods=['GET'])
+def user_info(public_key):
+    balance = blockchain.balances.get(public_key, 0)
+    mined = blockchain.mined_amounts.get(public_key, 0)
+    transactions = sum(
+        1 for block in blockchain.chain for tx in block['transactions']
+        if tx['sender'] == public_key or tx['recipient'] == public_key
+    )
+    return jsonify({
+        'balance': balance,
+        'total_mined': mined,
+        'total_transactions': transactions
+    }), 200
+
 import os
 port = int(os.environ.get("PORT", 5000))
-if __name__ == "__main__":
-    app.run(debug=True, host='0.0.0.0', port=port)
+app.run(debug=True, host='0.0.0.0', port=port)
