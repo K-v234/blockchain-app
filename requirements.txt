@@ -1,3 +1,4 @@
+base58
 flask
 cryptography
 requests
