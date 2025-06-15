@@ -3,3 +3,4 @@ cryptography
 requests
 base58
 pycryptodome
+qrcode
