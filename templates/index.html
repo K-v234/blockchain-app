@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ShadowChain Explorer & Wallet</title>
+  <title>ShadowChain Wallet & Explorer</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -104,44 +104,39 @@ createWalletBtn.onclick = async () => {
   walletBalance.textContent = balData.balance.toFixed(4);
 };
 
-// Send transaction
+// Send transaction (TEMP: Fake signature)
 sendForm.onsubmit = async (e) => {
   e.preventDefault();
   const sender = senderAddress.value;
-  const privKey = document.getElementById('privKeyInput').value.trim();
   const recipient = document.getElementById('recipient').value.trim();
   const amount = parseFloat(document.getElementById('amount').value);
-  if (!sender || !recipient || !privKey || isNaN(amount)) return;
+  if (!sender || !recipient || isNaN(amount)) return;
 
   const utxos = await (await fetch(`/utxos/${sender}`)).json();
-  if (utxos.length === 0) return Swal.fire('No UTXOs found');
+  if (!utxos.length) return Swal.fire('❌ No available UTXOs');
   const utxo = utxos[0];
 
-  const msg = `${utxo.txid}:${utxo.vout}`;
-  const encoder = new TextEncoder();
-  const msgBytes = encoder.encode(msg);
-
-  // Sign the message using WebCrypto or fallback
-  const privKeyObj = await window.crypto.subtle.importKey(
-    "pkcs8",
-    str2ab(privKey),
-    { name: "ECDSA", namedCurve: "P-256" },
-    false,
-    ["sign"]
-  );
-  const signature = await window.crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, privKeyObj, msgBytes);
-  const sigBase58 = toBase58(new Uint8Array(signature));
-
   const tx = {
-    vin: [{ txid: utxo.txid, vout: utxo.vout, signature: sigBase58, pubkey: "fake" }],
+    vin: [{
+      txid: utxo.txid,
+      vout: utxo.vout,
+      signature: "fake-signature-base58",
+      pubkey: "fake-pubkey-base58"
+    }],
     vout: [
       { amount: amount, address: recipient },
       { amount: utxo.amount - amount, address: sender }
     ]
   };
-  const resp = await fetch('/transaction/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(tx) });
-  const json = await resp.json();
-  Swal.fire(resp.ok ? `TXID: ${json.txid}` : json.error);
+
+  const res = await fetch('/transaction/send', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(tx)
+  });
+
+  const json = await res.json();
+  Swal.fire(res.ok ? `✅ TXID: ${json.txid}` : `❌ ${json.error}`);
 };
 
 // Mining
@@ -156,11 +151,11 @@ mineBtn.onclick = async () => {
   refreshChainBtn.click();
 };
 
-// Chain & leaderboard refresh
+// Refresh chain & leaderboard
 refreshChainBtn.onclick = async () => {
   const res = await fetch('/chain');
   const data = await res.json();
-  chainData.innerHTML = data.chain.map(b => `
+  chainData.innerHTML = data.chain.slice(-10).reverse().map(b => `
     <div class="mb-2 p-2 bg-gray-700 rounded">
       <b>Block #${b.index}</b><br>
       Hash: ${b.hash}<br>
@@ -177,28 +172,6 @@ refreshChainBtn.onclick = async () => {
 };
 
 refreshChainBtn.click();
-
-function str2ab(str) {
-  const b64 = str.replace(/-----.*?-----/g, '').replace(/\s+/g, '');
-  const binary = atob(b64);
-  const len = binary.length;
-  const bytes = new Uint8Array(len);
-  for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
-  return bytes.buffer;
-}
-
-function toBase58(bytes) {
-  const alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
-  let intVal = BigInt("0x" + Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join(''));
-  let res = "";
-  while (intVal > 0) {
-    const mod = intVal % 58n;
-    res = alphabet[Number(mod)] + res;
-    intVal /= 58n;
-  }
-  return res;
-}
 </script>
 </body>
 </html>
-
