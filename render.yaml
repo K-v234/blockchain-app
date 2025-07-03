@@ -1,7 +1,9 @@
 services:
   - type: web
-    name: shadowchain
+    name: shadowchain-v4
     runtime: python
     buildCommand: "pip install -r requirements.txt"
     startCommand: "python app.py"
-    env: python
+    envVars:
+      - key: FLASK_ENV
+        value: production
