@@ -1,10 +1,10 @@
-<!-- ShadowChain V4 - index.html (Frontend) -->
+<!-- ShadowChain V4+ Ultra Frontend (index.html) -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ShadowChain V4</title>
+  <title>ShadowChain V4+</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="/static/elliptic.min.js"></script>
@@ -12,152 +12,167 @@
   <style>
     body { background-color: #0f172a; color: #e2e8f0; font-family: 'Segoe UI', sans-serif; }
     .card { background-color: #1e293b; border-radius: 12px; padding: 20px; margin-bottom: 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); }
+    .label { color: #facc15; font-weight: bold; }
   </style>
 </head>
-<body class="p-6">
-  <h1 class="text-4xl mb-6 font-bold text-yellow-400 text-center">⚡ ShadowChain V4 Wallet & Explorer</h1>
+<body class="p-4">
+  <h1 class="text-4xl mb-6 font-bold text-yellow-400 text-center">🧠 ShadowChain V4+ Ultra</h1>
 
+  <!-- Wallet Panel -->
   <div class="card">
-    <h2 class="text-2xl mb-2 text-yellow-300">🧠 Create Wallet</h2>
-    <button id="createWalletBtn" class="bg-yellow-400 px-4 py-2 rounded text-black">Generate Wallet</button>
+    <h2 class="text-2xl text-yellow-300">🔐 Wallet</h2>
+    <button id="createWalletBtn" class="bg-yellow-400 px-4 py-2 rounded text-black">Create Wallet</button>
     <div id="walletInfo" class="mt-4 hidden">
-      <p>Address: <span id="walletAddress" class="text-green-300"></span></p>
-      <p>Balance: <span id="walletBalance" class="text-blue-400"></span> SHD</p>
-      <p><a id="downloadKey" href="#" class="text-yellow-200 underline">Download Private Key</a></p>
-      <p><a id="downloadQR" href="#" class="text-yellow-200 underline">Download QR Code</a></p>
+      <p><span class="label">Address:</span> <span id="walletAddress"></span></p>
+      <p><span class="label">Balance:</span> <span id="walletBalance">0.0000</span> SHD</p>
+      <a id="downloadKey" href="#" class="text-blue-400 underline">Download Private Key</a>
+      <a id="downloadQR" href="#" class="text-blue-400 underline ml-4">Download QR</a>
     </div>
   </div>
 
-  <div class="card hidden" id="sendCard">
-    <h2 class="text-2xl mb-2 text-yellow-300">💸 Send Transaction</h2>
-    <input type="text" id="recipient" placeholder="Recipient Address" class="w-full p-2 mb-2 rounded bg-gray-700" />
-    <input type="number" id="amount" placeholder="Amount" class="w-full p-2 mb-2 rounded bg-gray-700" />
-    <textarea id="privateKeyInput" placeholder="Paste your private key (PEM)" rows="4" class="w-full p-2 mb-2 rounded bg-gray-700"></textarea>
-    <button id="sendTxBtn" class="bg-yellow-400 px-4 py-2 rounded text-black">Send</button>
+  <!-- Transaction Panel -->
+  <div class="card hidden" id="txPanel">
+    <h2 class="text-2xl text-yellow-300">💸 Send SHD</h2>
+    <input id="recipient" placeholder="Recipient Address" class="w-full p-2 mb-2 rounded bg-gray-700" />
+    <input id="amount" type="number" step="0.0001" placeholder="Amount" class="w-full p-2 mb-2 rounded bg-gray-700" />
+    <textarea id="privKeyInput" placeholder="Paste PEM Private Key" rows="4" class="w-full p-2 mb-2 rounded bg-gray-700"></textarea>
+    <button id="sendBtn" class="bg-yellow-400 px-4 py-2 rounded text-black">Send</button>
   </div>
 
-  <div class="card hidden" id="mineCard">
-    <h2 class="text-2xl mb-2 text-yellow-300">⛏️ Mine SHD</h2>
-    <input type="text" id="minerAddress" readonly class="w-full p-2 mb-2 rounded bg-gray-700" />
+  <!-- Mining Panel -->
+  <div class="card hidden" id="minePanel">
+    <h2 class="text-2xl text-yellow-300">⛏️ Mine SHD</h2>
+    <input id="minerAddress" readonly class="w-full p-2 mb-2 rounded bg-gray-700" />
     <button id="mineBtn" class="bg-yellow-400 px-4 py-2 rounded text-black">Mine Block</button>
   </div>
 
+  <!-- Explorer -->
   <div class="card">
-    <h2 class="text-2xl text-yellow-300">🔍 Blockchain Explorer</h2>
-    <div id="chainExplorer" class="mt-4 max-h-[300px] overflow-y-scroll"></div>
+    <h2 class="text-2xl text-yellow-300">🔍 Explorer</h2>
+    <input id="searchInput" placeholder="Search TXID / Block Hash / Address" class="w-full p-2 rounded bg-gray-700 mb-2" />
+    <button onclick="handleSearch()" class="bg-yellow-400 px-4 py-1 rounded text-black">Search</button>
+    <div id="explorerResults" class="mt-4 max-h-[300px] overflow-y-scroll"></div>
   </div>
 
+  <!-- Leaderboard -->
   <div class="card">
-    <h2 class="text-2xl text-yellow-300">🏆 Leaderboard</h2>
-    <div id="leaderboard" class="mt-4"></div>
+    <h2 class="text-2xl text-yellow-300">🏆 Miner Leaderboard</h2>
+    <div id="leaderboard"></div>
   </div>
 
+  <!-- Tokenomics -->
   <div class="card">
     <h2 class="text-2xl text-yellow-300">📊 Tokenomics</h2>
-    <div id="tokenomicsStats" class="mt-4"></div>
+    <div id="tokenomics"></div>
   </div>
 
   <script>
-    const EC = elliptic.ec;
-    const ec = new EC('secp256k1');
+    const ec = new elliptic.ec("secp256k1");
     const socket = io();
-
     let currentAddress = null;
 
-    document.getElementById('createWalletBtn').onclick = async () => {
-      const res = await fetch('/wallet/new');
+    document.getElementById("createWalletBtn").onclick = async () => {
+      const res = await fetch("/wallet/new");
       const data = await res.json();
       currentAddress = data.address;
-      document.getElementById('walletAddress').textContent = data.address;
-      document.getElementById('walletBalance').textContent = 'Loading...';
-      document.getElementById('walletInfo').classList.remove('hidden');
-      document.getElementById('sendCard').classList.remove('hidden');
-      document.getElementById('mineCard').classList.remove('hidden');
-      document.getElementById('minerAddress').value = data.address;
-      document.getElementById('downloadKey').href = `/wallet/key/${data.address}`;
-      document.getElementById('downloadQR').href = `/wallet/qr/${data.address}`;
-
-      const bal = await fetch(`/balance/${data.address}`);
-      const balData = await bal.json();
-      document.getElementById('walletBalance').textContent = balData.balance.toFixed(4);
+      document.getElementById("walletAddress").textContent = data.address;
+      document.getElementById("walletInfo").classList.remove("hidden");
+      document.getElementById("txPanel").classList.remove("hidden");
+      document.getElementById("minePanel").classList.remove("hidden");
+      document.getElementById("minerAddress").value = data.address;
+      document.getElementById("downloadKey").href = `/wallet/key/${data.address}`;
+      document.getElementById("downloadQR").href = `/wallet/qr/${data.address}`;
+      updateBalance();
     };
 
-    document.getElementById('sendTxBtn').onclick = async () => {
-      const recipient = document.getElementById('recipient').value;
-      const amount = parseFloat(document.getElementById('amount').value);
-      const privKeyPEM = document.getElementById('privateKeyInput').value;
-      if (!recipient || isNaN(amount) || !privKeyPEM) return Swal.fire('❌ All fields required');
+    async function updateBalance() {
+      if (!currentAddress) return;
+      const res = await fetch(`/balance/${currentAddress}`);
+      const json = await res.json();
+      document.getElementById("walletBalance").textContent = parseFloat(json.balance).toFixed(4);
+    }
 
+    document.getElementById("mineBtn").onclick = async () => {
+      const res = await fetch("/mine", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ miner_address: currentAddress })
+      });
+      const data = await res.json();
+      Swal.fire(data.message);
+      updateBalance();
+    };
+
+    document.getElementById("sendBtn").onclick = async () => {
+      const recipient = document.getElementById("recipient").value;
+      const amount = parseFloat(document.getElementById("amount").value);
+      const privKey = document.getElementById("privKeyInput").value;
       const utxos = await (await fetch(`/utxos/${currentAddress}`)).json();
-      if (!utxos.length) return Swal.fire('❌ No UTXOs');
+      if (!utxos.length) return Swal.fire("❌ No UTXO available");
       const utxo = utxos[0];
 
-      // fake for now:
+      const key = ec.keyFromPrivate(privKey, "pem");
+      const txMsg = `${utxo.txid}:${utxo.vout}`;
+      const sig = key.sign(txMsg);
+      const signature = sig.toDER("hex");
+      const pubkey = key.getPublic().encodeCompressed("hex");
+
       const tx = {
-        vin: [{ txid: utxo.txid, vout: utxo.vout, signature: "fake", pubkey: "fake" }],
+        vin: [{ txid: utxo.txid, vout: utxo.vout, signature, pubkey }],
         vout: [
           { amount, address: recipient },
           { amount: utxo.amount - amount, address: currentAddress }
         ]
       };
 
-      const res = await fetch('/transaction/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("/transaction/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(tx)
       });
       const json = await res.json();
       Swal.fire(res.ok ? `✅ TXID: ${json.txid}` : `❌ ${json.error}`);
     };
 
-    document.getElementById('mineBtn').onclick = async () => {
-      const res = await fetch('/mine', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ miner_address: currentAddress })
-      });
-      const json = await res.json();
-      Swal.fire(json.message);
-    };
+    function handleSearch() {
+      const query = document.getElementById("searchInput").value.trim();
+      if (!query) return;
 
-    async function refreshExplorer() {
-      const res = await fetch('/chain');
-      const data = await res.json();
-      const explorer = document.getElementById('chainExplorer');
-      explorer.innerHTML = data.chain.slice(-10).reverse().map(b => `
-        <div class="bg-gray-700 p-2 rounded mb-2">
-          <b>#${b.index}</b> | <span class="text-green-300">${b.hash.slice(0, 18)}...</span>
-          <div class="text-sm text-gray-300">TXs: ${b.transactions.length} | Nonce: ${b.nonce}</div>
-        </div>
-      `).join('');
+      fetch(`/tx/${query}`).then(r => r.ok ? r.json().then(d => {
+        document.getElementById("explorerResults").innerHTML = `<pre>${JSON.stringify(d, null, 2)}</pre>`;
+      }) : fetch(`/block/hash/${query}`).then(r2 => r2.ok ? r2.json().then(d => {
+        document.getElementById("explorerResults").innerHTML = `<pre>${JSON.stringify(d, null, 2)}</pre>`;
+      }) : fetch(`/balance/${query}`).then(r3 => r3.ok ? r3.json().then(d => {
+        document.getElementById("explorerResults").innerHTML = `<pre>${JSON.stringify(d, null, 2)}</pre>`;
+      }) : Swal.fire("❌ Not found"))));
     }
 
     async function refreshLeaderboard() {
-      const res = await fetch('/leaderboard');
+      const res = await fetch("/leaderboard");
       const data = await res.json();
-      document.getElementById('leaderboard').innerHTML = data.map(e => `<div>${e.address}: ${e.mined.toFixed(2)} SHD</div>`).join('');
+      document.getElementById("leaderboard").innerHTML = data.map(e => `<div>${e.address}: ${e.mined.toFixed(4)} SHD</div>`).join("");
     }
 
     async function refreshTokenomics() {
-      const res = await fetch('/tokenomics');
+      const res = await fetch("/tokenomics");
       const d = await res.json();
-      document.getElementById('tokenomicsStats').innerHTML = `
-        Total Mined: ${d.total_mined}<br>
-        Remaining: ${d.remaining_supply}<br>
-        Reward: ${d.block_reward} SHD<br>
-        Block Height: ${d.current_height}
+      document.getElementById("tokenomics").innerHTML = `
+        Total Mined: ${d.total_mined} SHD<br>
+        Remaining: ${d.remaining} SHD<br>
+        Block Reward: ${d.reward} SHD<br>
+        Height: ${d.height}
       `;
     }
 
-    socket.on('new_block', (data) => {
-      refreshExplorer();
+    socket.on("new_block", () => {
+      updateBalance();
       refreshLeaderboard();
       refreshTokenomics();
     });
 
-    refreshExplorer();
     refreshLeaderboard();
     refreshTokenomics();
   </script>
 </body>
 </html>
+
