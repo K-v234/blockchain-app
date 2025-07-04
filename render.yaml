@@ -1,9 +1,16 @@
 services:
   - type: web
-    name: shadowchain-v4
-    runtime: python
-    buildCommand: "pip install -r requirements.txt"
-    startCommand: "python app.py"
+    name: shadowchain-backend
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python app.py
+    autoDeploy: true
     envVars:
-      - key: FLASK_ENV
-        value: production
+      - key: PYTHON_VERSION
+        value: 3.11.11
+    disk:
+      name: blockchain-data
+      mountPath: /data
+      sizeGB: 1
+

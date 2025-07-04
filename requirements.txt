@@ -1,7 +1,7 @@
 flask
 flask_socketio
 cryptography
-base58
-qrcode
 requests
-eventlet
+base58
+pycryptodome
+qrcode
