@@ -71,6 +71,19 @@
     const socket = io();
     let currentAddress = null;
 
+    function canonicalize(value) {
+      if (Array.isArray(value)) {
+        return value.map(canonicalize);
+      }
+      if (value && typeof value === "object") {
+        return Object.keys(value).sort().reduce((acc, key) => {
+          acc[key] = canonicalize(value[key]);
+          return acc;
+        }, {});
+      }
+      return value;
+    }
+
     document.getElementById("createWalletBtn").onclick = async () => {
       const res = await fetch("/wallet/new");
       const data = await res.json();
@@ -112,8 +125,21 @@
       const utxo = utxos[0];
 
       const key = ec.keyFromPrivate(privKey, "pem");
-      const txMsg = `${utxo.txid}:${utxo.vout}`;
-      const sig = key.sign(txMsg);
+      const timestamp = Math.floor(Date.now() / 1000);
+      const payload = {
+        timestamp,
+        vin: [{ txid: utxo.txid, vout: utxo.vout }],
+        vout: [
+          { address: recipient, amount },
+          { address: currentAddress, amount: utxo.amount - amount }
+        ]
+      };
+      const msgBytes = new TextEncoder().encode(JSON.stringify(canonicalize(payload)));
+      const digest = await crypto.subtle.digest("SHA-256", msgBytes);
+      const hashHex = Array.from(new Uint8Array(digest))
+        .map(b => b.toString(16).padStart(2, "0"))
+        .join("");
+      const sig = key.sign(hashHex);
       const signature = sig.toDER("hex");
       const pubkey = key.getPublic().encodeCompressed("hex");
 
@@ -122,7 +148,8 @@
         vout: [
           { amount, address: recipient },
           { amount: utxo.amount - amount, address: currentAddress }
-        ]
+        ],
+        timestamp
       };
 
       const res = await fetch("/transaction/send", {

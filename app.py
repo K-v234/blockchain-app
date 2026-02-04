@@ -3,7 +3,7 @@
 
 from flask import Flask, jsonify, request, render_template, send_file
 from flask_socketio import SocketIO, emit
-from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives.asymmetric import ec, utils as asym_utils
 from cryptography.hazmat.primitives import serialization, hashes
 import hashlib, base58, json, time, io, qrcode, os
 from collections import defaultdict
@@ -38,14 +38,38 @@ class Wallet:
         )
 
     def get_address(self):
-        pub_bytes = self.serialize_public_key()
-        sha = hashlib.sha256(pub_bytes).digest()
-        ripe = hashlib.new('ripemd160', sha).digest()
-        payload = b'\x00' + ripe
-        checksum = hashlib.sha256(hashlib.sha256(payload).digest()).digest()[:4]
-        return base58.b58encode(payload + checksum).decode()
+        return pubkey_to_address(self.serialize_public_key())
 
 wallets = {}
+
+def pubkey_to_address(pubkey_bytes):
+    sha = hashlib.sha256(pubkey_bytes).digest()
+    ripe = hashlib.new('ripemd160', sha).digest()
+    payload = b'\x00' + ripe
+    checksum = hashlib.sha256(hashlib.sha256(payload).digest()).digest()[:4]
+    return base58.b58encode(payload + checksum).decode()
+
+def signature_message(tx):
+    sanitized_vin = [{"txid": vin["txid"], "vout": vin["vout"]} for vin in tx.vin]
+    payload = {
+        "vin": sanitized_vin,
+        "vout": tx.vout,
+        "timestamp": tx.timestamp
+    }
+    return json.dumps(payload, sort_keys=True).encode()
+
+def verify_utxo_signature(tx, vin, utxo):
+    try:
+        signature = bytes.fromhex(vin['signature'])
+        pubkey_bytes = bytes.fromhex(vin['pubkey'])
+        if pubkey_to_address(pubkey_bytes) != utxo['address']:
+            return False
+        public_key = ec.EllipticCurvePublicKey.from_encoded_point(ec.SECP256K1(), pubkey_bytes)
+        digest = hashlib.sha256(signature_message(tx)).digest()
+        public_key.verify(signature, digest, ec.ECDSA(asym_utils.Prehashed(hashes.SHA256())))
+        return True
+    except Exception:
+        return False
 
 # === TX ===
 class Transaction:
@@ -156,6 +180,24 @@ class Blockchain:
             for i, out in enumerate(tx.vout):
                 self.utxos[f"{tx.txid}:{i}"] = {"amount": out['amount'], "address": out['address']}
 
+    def validate_transaction(self, tx):
+        if not tx.vin:
+            return False, "transaction has no inputs"
+        seen_inputs = set()
+        for vin in tx.vin:
+            if not all(k in vin for k in ("txid", "vout", "signature", "pubkey")):
+                return False, "missing signature data"
+            utxo_key = f"{vin['txid']}:{vin['vout']}"
+            if utxo_key in seen_inputs:
+                return False, "duplicate input"
+            seen_inputs.add(utxo_key)
+            utxo = self.utxos.get(utxo_key)
+            if not utxo:
+                return False, "referenced utxo not found"
+            if not verify_utxo_signature(tx, vin, utxo):
+                return False, "invalid signature"
+        return True, None
+
     def mine_block(self, miner_addr):
         reward = self.get_reward()
         coinbase = Transaction([], [{"amount": reward, "address": miner_addr}])
@@ -215,6 +257,9 @@ def utxo_list(addr):
 @app.route('/transaction/send', methods=['POST'])
 def send():
     tx = Transaction.from_dict(request.json)
+    is_valid, error = blockchain.validate_transaction(tx)
+    if not is_valid:
+        return jsonify({"error": error}), 400
     blockchain.mempool.append(tx)
     return jsonify({"message": "tx added", "txid": tx.txid})
 
@@ -266,4 +311,3 @@ def tokenomics():
 
 if __name__ == '__main__':
     socketio.run(app, host='0.0.0.0', port=10000, allow_unsafe_werkzeug=True)
-
